@@ -1,0 +1,27 @@
+# Entornos virtuales
+.venv/
+venv/
+ENV/
+
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Archivos de configuración de entorno
+*.env
+
+# Archivos temporales
+*.log
+*.tmp
+.DS_Store
+
+# Hugging Face cache (para no subir modelos pesados)
+huggingface/
+transformers_cache/
+cache/
+
+# Jupyter
+.ipynb_checkpoints
