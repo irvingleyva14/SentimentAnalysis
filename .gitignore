@@ -25,3 +25,13 @@ cache/
 
 # Jupyter
 .ipynb_checkpoints
+
+# Ignorar modelos pesados y temporales
+models/**/*.tar.gz
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.h5
+models/**/*.pt
+models/**/*.ckpt
+models/**/*.onnx
+
