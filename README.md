@@ -121,3 +121,16 @@ Ingeniero en Mecatrónica con especialización en Inteligencia Artificial
 📜 Licencia
 
 MIT License — libre para uso, modificación y distribución.
+## 📚 Documentation
+
+The documentation is divided into the following sections:
+
+| File | Description |
+|------|--------------|
+| `docs/00_overview.md` | General overview of the project |
+| `docs/01_architecture.md` | Project structure and components |
+| `docs/02_decisions.md` | Technical design decisions |
+| `docs/03_api_reference.md` | API endpoints and usage examples |
+| `docs/04_deployment.md` | Deployment process and commands |
+| `docs/05_future_work.md` | Planned improvements |
+

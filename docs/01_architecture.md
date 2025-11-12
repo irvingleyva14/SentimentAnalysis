@@ -1,26 +1,26 @@
 # Arquitectura del sistema
 
-La API está organizada según los principios de **Clean Architecture**:
+El proyecto sigue una arquitectura modular inspirada en los principios de **Clean Architecture**.
+
+## Estructura general
 
 app/
-├── api/ → Controladores (routers, endpoints)
-├── core/ → Configuración global, logging, etc.
-├── services/ → Lógica de negocio y manejo de modelos
-└── models/ → (opcional) esquemas Pydantic de entrada/salida
-
+├── api/ → Endpoints y routers
+├── core/ → Configuración, logging y constantes globales
+├── services/ → Lógica de negocio e inferencia del modelo
+└── models/ → Estructuras Pydantic y modelo descargado
 
 ## Flujo general de ejecución
 
-1. El cliente envía una solicitud `POST /predict` con un texto.
-2. FastAPI inyecta una instancia de `PredictorService` mediante dependencias.
-3. `PredictorService` usa `ModelLoader` para obtener el modelo desde `models/multilingual-sentiment`.
-4. El modelo realiza la inferencia con `transformers.pipeline("text-classification")`.
-5. Se devuelve la respuesta JSON con el sentimiento detectado.
+1. El cliente realiza un `POST /predict` con texto.
+2. FastAPI recibe el request y lo pasa al servicio de predicción.
+3. El `PredictorService` carga el modelo (local o desde GCS).
+4. Se ejecuta el pipeline `transformers.pipeline("text-classification")`.
+5. Se devuelve una respuesta JSON con el sentimiento y la confianza.
 
 ## Principios aplicados
 
-- **Alta cohesión**: cada módulo tiene una única responsabilidad.
-- **Bajo acoplamiento**: los servicios interactúan a través de dependencias controladas.
-- **Reutilización**: el modelo se carga una sola vez y se comparte entre requests.
-- **Extensibilidad**: se puede agregar fácilmente un nuevo modelo o endpoint.
-
+- **Alta cohesión:** cada módulo cumple un rol claro.
+- **Bajo acoplamiento:** los servicios interactúan mediante inyección de dependencias.
+- **Reutilización:** el modelo se carga una única vez.
+- **Escalabilidad:** se pueden agregar nuevos endpoints o modelos fácilmente.

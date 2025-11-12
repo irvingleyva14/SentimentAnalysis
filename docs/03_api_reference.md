@@ -37,3 +37,8 @@ Response:
 | 200    | Predicción exitosa            |
 | 422    | Error de validación del input |
 | 500    | Error interno del servidor    |
+
+
+Documentación interactiva
+
+Disponible en /docs (Swagger UI) y /redoc (ReDoc).
