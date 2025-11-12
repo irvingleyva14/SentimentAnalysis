@@ -39,3 +39,5 @@ websockets==15.0.1
 torch
 torchvision
 torchaudio
+
+google-cloud-storage==2.19.0

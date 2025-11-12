@@ -1,0 +1,22 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv
+.git
+.gitignore
+Dockerfile
+deploy.sh
+models/
+
+# Archivos y carpetas a excluir de la imagen
+.venv/
+__pycache__/
+.vscode/
+.git/
+.gitignore
+docs/
+tests/
+*.log

@@ -12,7 +12,7 @@ __pycache__/
 
 # Archivos de configuración de entorno
 *.env
-
+.vscode/
 # Archivos temporales
 *.log
 *.tmp
@@ -27,6 +27,7 @@ cache/
 .ipynb_checkpoints
 
 # Ignorar modelos pesados y temporales
+models/
 models/**/*.tar.gz
 models/**/*.bin
 models/**/*.safetensors
@@ -35,3 +36,10 @@ models/**/*.pt
 models/**/*.ckpt
 models/**/*.onnx
 
+# Archivos de despliegue o build
+build/
+dist/
+*.egg-info/
+
+# Archivos del sistema
+.DS_Store
