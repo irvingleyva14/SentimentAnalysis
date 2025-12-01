@@ -8,5 +8,10 @@ app = FastAPI(title="Sentiment Analysis API")
 def root():
     return {"ok": True, "msg": "API viva"}
 
+# Endpoint healthcheck
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 # Incluir el router con las rutas /predict y /batch_predict
 app.include_router(predict_router)

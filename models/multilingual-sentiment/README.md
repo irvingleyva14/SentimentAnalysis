@@ -56,7 +56,7 @@ datasets:
 # NEWS! 
 - 2025/8: Major model update +1 new language: **Swahili**! Also, general improvements accross all languages.
 
-- 2025/8: Free API for our model! Please see below!
+- 2025/8: Free DEMO API for our model! Please see below!
 
 - 2025/7: We’ve just released ModernFinBERT, a model we’ve been working on for a while. It’s built on the ModernBERT architecture and trained on a mix of real and synthetic data, with LLM-based label correction applied to public datasets to fix human annotation errors.
 It’s performing well across a range of benchmarks — in some cases improving accuracy by up to 48% over existing models like FinBERT.
@@ -66,7 +66,7 @@ You can check it out here on Hugging Face:
 - 2024/12: We are excited to introduce a multilingual sentiment model! Now you can analyze sentiment across multiple languages, enhancing your global reach.
 
 
-## 🔌 Hosted API
+## 🔌 Hosted DEMO API
 
 We provide a hosted inference API:
 
