@@ -9,18 +9,16 @@ ENV GOOGLE_CLOUD_PROJECT=professional-task
 WORKDIR /app
 
 # Copiar dependencias
-COPY requirements.txt .
+COPY requirements.txt /app/
 
 # Instalar dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código
-COPY . .
+# Copiar el resto del código (incluyendo /tests)
+COPY . /app/
 
 # Exponer puerto
 EXPOSE 8080
 
-# Comando para ejecutar la app
-#CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Comando para ejecutar la app en Cloud Run
 CMD ["python", "run.py"]
-
