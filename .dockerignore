@@ -1,22 +1,17 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-.env
-.venv
-.git
-.gitignore
-Dockerfile
-deploy.sh
-models/
-
-# Archivos y carpetas a excluir de la imagen
+# Carpetas y archivos de desarrollo que NO deben ir al contenedor
 .venv/
+venv/
 __pycache__/
 .vscode/
 .git/
 .gitignore
-docs/
-tests/
+
+# Cachés
+*.pyc
+*.pyo
+*.pyd
+.Python
 *.log
+
+# Modelos o archivos pesados que NO se deben copiar dentro del contenedor
+models/
