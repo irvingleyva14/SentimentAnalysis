@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('gcp-service-account')
+    }
+
     stages {
         stage('Checkout code') {
             steps {
@@ -10,7 +14,10 @@ pipeline {
 
         stage('Build Docker image') {
             steps {
-                sh 'docker build -t sentiment-api:jenkins .'
+                sh '''
+                sudo usermod -aG docker jenkins
+                docker build -t sentiment-api:jenkins .
+                '''
             }
         }
     }
