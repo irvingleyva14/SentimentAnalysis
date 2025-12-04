@@ -7,6 +7,7 @@ click==8.2.1
 fastapi==0.116.1
 filelock==3.19.1
 fsspec==2025.7.0
+gunicorn
 h11==0.16.0
 hf-xet==1.1.8
 httptools==0.6.4
@@ -17,6 +18,7 @@ numpy==2.3.2
 packaging==25.0
 pydantic==2.11.7
 pydantic_core==2.33.2
+pydantic-settings==2.3.4
 pytest>=8.0.0
 python-dotenv==1.1.1
 PyYAML==6.0.2
@@ -43,3 +45,6 @@ torchvision
 torchaudio
 
 google-cloud-storage==2.19.0
+
+# === LIBRERÍA DE OBSERVABILIDAD FALTANTE ===
+prometheus-client
