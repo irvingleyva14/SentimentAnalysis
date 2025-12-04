@@ -78,7 +78,8 @@ pipeline {
                       --platform managed \
                       --allow-unauthenticated \
                       --service-account=${SA_EMAIL} \
-                      --memory=1Gi --cpu=1 \
+                      --memory=4Gi --cpu=2 \
+                      --timeout=300s \
                       --min-instances=0 \
                       --set-env-vars ENVIRONMENT=production
                 """
