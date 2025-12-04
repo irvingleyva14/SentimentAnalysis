@@ -10,7 +10,7 @@ router = APIRouter()
 class InputText(BaseModel):
     text: str
 
-@router.post("/")
+@router.post("/predict/")
 async def predict_sentiment(
     payload: InputText,
     predictor_service: PredictorService = Depends(get_predictor_service)

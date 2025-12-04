@@ -4,17 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.predict import router as predict_router
 from app.services.model_loader import ModelLoader
 from app.core.logger import setup_logger
-import time
 from app.config import settings
+from uuid import uuid4
+import time
 
 logger = setup_logger(__name__)
 
 def create_app() -> FastAPI:
     app = FastAPI(
-    title=settings.APP_NAME,
-    version="1.0.0"
-)
-
+        title=settings.APP_NAME,
+        version="1.0.0"
+    )
 
     # ----------------------------
     # CORS Middleware
@@ -28,12 +28,53 @@ def create_app() -> FastAPI:
     )
 
     # ----------------------------
-    # Load Model once
+    # Load Model once at startup
     # ----------------------------
     logger.info("📦 Cargando modelo en startup...")
     model_loader = ModelLoader(settings.MODEL_PATH)
     app.state.model = model_loader.load_model()
     logger.info("✔️ Modelo cargado en memoria")
+
+    # ----------------------------
+    # Logging Middleware (must be BEFORE handlers and routers)
+    # ----------------------------
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        trace_id = str(uuid4())
+        request.state.trace_id = trace_id
+        
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        
+        logger.info(
+            f"{request.method} {request.url.path} completed",
+            extra={
+                "trace_id": trace_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
+                "latency_ms": round(process_time, 2)
+            }
+        )
+
+        response.headers["X-Trace-Id"] = trace_id
+        return response
+
+    # ----------------------------
+    # Exception Handler (AFTER middleware)
+    # ----------------------------
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        trace_id = getattr(request.state, "trace_id", None)
+        logger.error(
+            str(exc),
+            extra={"trace_id": trace_id}
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Error interno del servidor", "trace_id": trace_id},
+        )
 
     # ----------------------------
     # Healthcheck Endpoint
@@ -43,32 +84,8 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     # ----------------------------
-    # Global Exception Handler
+    # Routers
     # ----------------------------
-    @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Error en request: {exc}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Error interno del servidor"},
-        )
-
-    # ----------------------------
-    # Logging Middleware
-    # ----------------------------
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        start = time.time()
-        response = await call_next(request)
-        process_time = (time.time() - start) * 1000
-
-        logger.info(
-            f"{request.method} {request.url.path} "
-            f"Status: {response.status_code} "
-            f"Time: {process_time:.2f}ms"
-        )
-        return response
-
     app.include_router(predict_router, prefix="/sentiment")
 
     return app
