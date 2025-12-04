@@ -1,17 +1,21 @@
 from fastapi import FastAPI
 from app.api.routes.predict import router as predict_router
+from app.services.model_loader import ModelLoader
 
-app = FastAPI(title="Sentiment Analysis API")
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Sentiment Analysis API",
+        version="1.0.0"
+    )
 
-# Endpoint raíz
-@app.get("/")
-def root():
-    return {"ok": True, "msg": "API viva"}
+    # Cargar modelo 1 sola vez
+    model_loader = ModelLoader()
+    app.state.model = model_loader.load_model()
 
-# Endpoint healthcheck
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+    # Aquí se registran los routers
+    app.include_router(predict_router, prefix="/sentiment")
 
-# Incluir el router con las rutas /predict y /batch_predict
-app.include_router(predict_router)
+    return app
+
+# Instancia para producción
+app = create_app()

@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from app.services.predictor_service import PredictorService
 from app.api.dependencies import get_predictor_service
 
-router = APIRouter(prefix="/predict", tags=["Prediction"])
+#router = APIRouter(prefix="/predict", tags=["Prediction"])
+router = APIRouter()
 
 class InputText(BaseModel):
     text: str
