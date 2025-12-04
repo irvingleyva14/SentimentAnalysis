@@ -12,12 +12,10 @@ pipeline {
         IMAGE_BASE_NAME = "sentiment-api"
         IMAGE_REPO = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${SERVICE_NAME}"
         
-        // Etiqueta inmutable (Short SHA del commit)
+        // Etiqueta inmutable (Short SHA)
         GIT_COMMIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
 
         // === CREDENCIALES ===
-        // Usamos la clave para garantizar que pase AHORA MISMO. 
-        // (En un entorno real con plugin OIDC, usaríamos la lógica WIF).
         GCP_SA_KEY = credentials('gcp-service-account')
         SA_EMAIL = "sentiment-ci@professional-task.iam.gserviceaccount.com"
     }
@@ -30,30 +28,23 @@ pipeline {
             }
         }
         
-        // ----------------------------------------------------
-        // FASE 1: INTEGRACIÓN CONTINUA (CI)
-        // ----------------------------------------------------
+        // --- CI STAGES ---
         stage('Build CI Image (Builder)') {
             steps {
-                // Construimos el target 'builder' que tiene las herramientas de test
                 sh "docker build --target builder -t ${IMAGE_BASE_NAME}:builder ."
             }
         }
 
         stage('Run tests (CI Gate)') {
             steps {
-                // Ejecutamos pytest sobre la imagen builder.
-                // IMPORTANTE: Inyectamos PYTHONPATH para que encuentre las dependencias.
+                // Inyectamos PYTHONPATH para que encuentre los paquetes
                 sh "docker run --rm -w /app -e PYTHONPATH=/app/site-packages ${IMAGE_BASE_NAME}:builder python -m pytest -q || (echo '❌ Tests failed' && exit 1)"
             }
         }
         
-        // ----------------------------------------------------
-        // FASE 2: ENTREGA CONTINUA (CD)
-        // ----------------------------------------------------
+        // --- CD STAGES ---
         stage('Build Production Image') {
             steps {
-                // Construimos la imagen final 'secure' (Distroless/Slim Hardened)
                 sh "docker build -t ${IMAGE_BASE_NAME}:secure ."
             }
         }
@@ -61,10 +52,7 @@ pipeline {
         stage('Authenticate to GCP') {
             steps {
                 sh """
-                    # Activamos la Service Account
                     gcloud auth activate-service-account --key-file=$GCP_SA_KEY
-                    
-                    # Configuramos proyecto y Docker
                     gcloud config set project $PROJECT_ID
                     gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
                 """
@@ -74,10 +62,9 @@ pipeline {
         stage('Tag & Push image') {
             steps {
                 sh """
-                    # Etiquetado inmutable para trazabilidad
                     docker tag ${IMAGE_BASE_NAME}:secure ${IMAGE_REPO}:${GIT_COMMIT_SHA}
                     docker push ${IMAGE_REPO}:${GIT_COMMIT_SHA}
-                    echo "✅ Imagen subida a Artifact Registry: ${GIT_COMMIT_SHA}"
+                    echo "✅ Imagen subida: ${IMAGE_REPO}:${GIT_COMMIT_SHA}"
                 """
             }
         }
@@ -98,44 +85,47 @@ pipeline {
             }
         }
         
-        // ----------------------------------------------------
-        // FASE 3: VALIDACIÓN POST-DESPLIEGUE
-        // ----------------------------------------------------
+        // --- VALIDACIÓN ---
         stage('Smoke Test Post-Deploy') {
             steps {
                 script {
                     def serviceUrl = sh(script: "gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format='value(status.url)'", returnStdout: true).trim()
                     echo "🚀 URL del Servicio: ${serviceUrl}"
                     
-                    // Aumentamos la espera inicial a 30s por el modelo pesado
-                    echo "⏳ Esperando 30 segundos para carga del modelo en Cold Start..."
+                    echo "⏳ Esperando 30 segundos iniciales para Cold Start..."
                     sleep 30
                     
-                    echo "🔄 Iniciando intentos de conexión..."
-                    // Bucle de reintento manual (más robusto que curl --retry para 503s de inicio)
-                    // Intenta durante 2 minutos (12 intentos * 10s)
                     def isAlive = false
-                    for (int i = 0; i < 12; i++) {
-                        // El comando devuelve 0 (true) si grep encuentra 'status', o falla
-                        // Usamos '|| true' para que el script no muera si curl falla
-                        def status = sh(script: "curl -s ${serviceUrl}/health | grep 'status'", returnStatus: true)
+                    // Bucle de reintentos (12 intentos x 10s = 2 minutos)
+                    for (int i = 1; i <= 12; i++) {
+                        echo "🔄 Intento ${i}/12..."
+                        // Usamos returnStatus: true para que no falle el script si curl da error 503
+                        def status = sh(script: "curl -s --fail ${serviceUrl}/health | grep 'ok'", returnStatus: true)
                         
                         if (status == 0) {
-                            echo "✅ Intento ${i+1}: ÉXITO. El servicio respondió."
+                            echo "✅ ¡ÉXITO! El servicio respondió 'ok'."
                             isAlive = true
                             break
                         } else {
-                            echo "⚠️ Intento ${i+1}: Falló (posible 503/Cold Start). Reintentando en 10s..."
+                            echo "⚠️ Aún no responde (posible 503). Esperando 10s..."
                             sleep 10
                         }
                     }
                     
                     if (!isAlive) {
-                        echo "❌ Smoke Test FALLIDO: El servicio no respondió después de varios intentos."
-                        error("Deployment verification failed: Service unreachable")
-                    } else {
-                        echo "✅ Smoke Test COMPLETADO."
+                        error("❌ Smoke Test FALLIDO: El servicio no respondió después de 2 minutos.")
                     }
                 }
             }
         }
+    } // Cierre de stages
+
+    post {
+        success {
+            echo "🏆 PIPELINE COMPLETADO EXITOSAMENTE 🏆"
+        }
+        failure {
+            echo "❌ El pipeline falló. Revisa los logs."
+        }
+    } // Cierre de post
+} // Cierre de pipeline
