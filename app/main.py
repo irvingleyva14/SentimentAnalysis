@@ -5,11 +5,16 @@ from app.api.routes.predict import router as predict_router
 from app.services.model_loader import ModelLoader
 from app.core.logger import setup_logger
 import time
+from app.config import settings
 
 logger = setup_logger(__name__)
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Sentiment Analysis API", version="1.0.0")
+    app = FastAPI(
+    title=settings.APP_NAME,
+    version="1.0.0"
+)
+
 
     # ----------------------------
     # CORS Middleware
@@ -26,7 +31,7 @@ def create_app() -> FastAPI:
     # Load Model once
     # ----------------------------
     logger.info("📦 Cargando modelo en startup...")
-    model_loader = ModelLoader()
+    model_loader = ModelLoader(settings.MODEL_PATH)
     app.state.model = model_loader.load_model()
     logger.info("✔️ Modelo cargado en memoria")
 
