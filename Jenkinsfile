@@ -104,33 +104,38 @@ pipeline {
         stage('Smoke Test Post-Deploy') {
             steps {
                 script {
-                    // 1. Obtener la URL del servicio
                     def serviceUrl = sh(script: "gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format='value(status.url)'", returnStdout: true).trim()
-                    
                     echo "🚀 URL del Servicio: ${serviceUrl}"
-                    echo "⏳ Esperando 15 segundos para 'Cold Start' de Cloud Run..."
-                    sleep 15
                     
-                    // 2. Ejecutar prueba de salud (Healthcheck)
-                    // Usamos 'grep status' porque el JSON de respuesta es {"status": "ok"}
-                    try {
-                        sh "curl -s --fail --show-error ${serviceUrl}/health | grep 'status'"
-                        echo "✅ Smoke Test EXITOSO: El servicio responde correctamente."
-                    } catch (Exception e) {
-                        echo "❌ Smoke Test FALLIDO: El endpoint /health no respondió 200 OK o el JSON esperado."
-                        error("Deployment verification failed")
+                    // Aumentamos la espera inicial a 30s por el modelo pesado
+                    echo "⏳ Esperando 30 segundos para carga del modelo en Cold Start..."
+                    sleep 30
+                    
+                    echo "🔄 Iniciando intentos de conexión..."
+                    // Bucle de reintento manual (más robusto que curl --retry para 503s de inicio)
+                    // Intenta durante 2 minutos (12 intentos * 10s)
+                    def isAlive = false
+                    for (int i = 0; i < 12; i++) {
+                        // El comando devuelve 0 (true) si grep encuentra 'status', o falla
+                        // Usamos '|| true' para que el script no muera si curl falla
+                        def status = sh(script: "curl -s ${serviceUrl}/health | grep 'status'", returnStatus: true)
+                        
+                        if (status == 0) {
+                            echo "✅ Intento ${i+1}: ÉXITO. El servicio respondió."
+                            isAlive = true
+                            break
+                        } else {
+                            echo "⚠️ Intento ${i+1}: Falló (posible 503/Cold Start). Reintentando en 10s..."
+                            sleep 10
+                        }
+                    }
+                    
+                    if (!isAlive) {
+                        echo "❌ Smoke Test FALLIDO: El servicio no respondió después de varios intentos."
+                        error("Deployment verification failed: Service unreachable")
+                    } else {
+                        echo "✅ Smoke Test COMPLETADO."
                     }
                 }
             }
         }
-    }
-
-    post {
-        success {
-            echo "🏆 PIPELINE COMPLETADO EXITOSAMENTE 🏆"
-        }
-        failure {
-            echo "❌ El pipeline falló. Revisa los logs."
-        }
-    }
-}
