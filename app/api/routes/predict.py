@@ -4,12 +4,13 @@ from pydantic import BaseModel
 from app.services.predictor_service import PredictorService
 from app.api.dependencies import get_predictor_service
 
-router = APIRouter(prefix="/predict", tags=["Prediction"])
+#router = APIRouter(prefix="/predict", tags=["Prediction"])
+router = APIRouter()
 
 class InputText(BaseModel):
     text: str
 
-@router.post("/")
+@router.post("/predict/")
 async def predict_sentiment(
     payload: InputText,
     predictor_service: PredictorService = Depends(get_predictor_service)

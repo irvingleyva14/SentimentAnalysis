@@ -1,20 +1,29 @@
-# app/core/logger.py
 import logging
-import sys
+import json
+from app.config import settings
 
-def setup_logger(name: str) -> logging.Logger:
-    """Crea y configura un logger con formato consistente para toda la app."""
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+            "trace_id": getattr(record, "trace_id", None),
+            "method": getattr(record, "method", None),
+            "path": getattr(record, "path", None),
+            "status": getattr(record, "status", None),
+            "latency_ms": getattr(record, "latency_ms", None),
+            "environment": settings.ENVIRONMENT,
+        }
+        return json.dumps(log_record)
+
+def setup_logger(name: str):
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
-    # Evita agregar handlers duplicados si el logger ya existe
-    if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            '[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
 
+    logger.addHandler(handler)
+    logger.propagate = False
     return logger
