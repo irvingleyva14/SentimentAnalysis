@@ -43,8 +43,14 @@ RUN apt-get update && apt-get remove --purge -y build-essential gcc && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# 👤 SEGURIDAD: Crear y usar usuario no-root (UID 10001) (Requisito del examen)
+# 👤 SEGURIDAD: Crear usuario no-root (UID 10001) (Requisito del examen)
 RUN groupadd -r appuser && useradd -r -g appuser -u 10001 appuser
+
+# ⚠️ FIX CRÍTICO DE PERMISOS: Crear carpeta para el modelo y asignar dueño
+# Esto soluciona el "PermissionError: [Errno 13]" al descargar de GCS
+RUN mkdir -p /app/models && chown -R appuser:appuser /app/models
+
+# Cambiar al usuario no-root
 USER 10001
 
 # Configuración de entorno
@@ -55,7 +61,8 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Healthcheck Nativo (Requisito del examen)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+# Aumentamos start-period para dar tiempo a la descarga del modelo
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=5 \
   CMD python -c 'import urllib.request; urllib.request.urlopen("http://localhost:8080/health").getcode()'
 
 # ENTRYPOINT y CMD (Ejecución de Gunicorn)
@@ -66,4 +73,5 @@ CMD ["-m", "gunicorn", \
      "--workers", "2", \
      "--threads", "1", \
      "--bind", "0.0.0.0:8080", \
+     "--timeout", "300", \
      "app.main:app"]
