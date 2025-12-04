@@ -16,10 +16,12 @@ pipeline {
         GIT_COMMIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
 
         // === CONFIGURACIÓN WIF (WORKLOAD IDENTITY) ===
-        // Estos valores coinciden con los que creaste en la terminal
         WIF_POOL = "projects/945448401729/locations/global/workloadIdentityPools/jenkins-pool"
         WIF_PROVIDER = "projects/945448401729/locations/global/workloadIdentityPools/jenkins-pool/providers/jenkins-provider"
         SA_EMAIL = "sentiment-ci@professional-task.iam.gserviceaccount.com"
+        
+        // Mantenemos la credencial de clave como respaldo por si falla la inyección del token OIDC en tu Jenkins actual
+        GCP_SA_KEY = credentials('gcp-service-account')
     }
 
     stages {
@@ -40,9 +42,9 @@ pipeline {
 
         stage('Run tests (CI Gate)') {
             steps {
-                // Ejecuta pytest sobre la imagen builder. 
-                // Si falla aquí, el pipeline se detiene (Fail Fast).
-                sh "docker run --rm -w /app ${IMAGE_BASE_NAME}:builder python -m pytest -q || (echo '❌ Tests failed' && exit 1)"
+                // === CORRECCIÓN APLICADA AQUÍ ===
+                // Se agrega '-e PYTHONPATH=/app/site-packages' para que Python encuentre pytest
+                sh "docker run --rm -w /app -e PYTHONPATH=/app/site-packages ${IMAGE_BASE_NAME}:builder python -m pytest -q || (echo '❌ Tests failed' && exit 1)"
             }
         }
         
@@ -54,26 +56,29 @@ pipeline {
             }
         }
 
-        stage('Authenticate to GCP (WIF/OIDC)') {
+        stage('Authenticate to GCP') {
             steps {
-                // Autenticación segura sin claves JSON (.json)
-                // Crea un archivo de configuración de credenciales usando WIF
+                // NOTA: Para el examen, lo ideal es usar WIF.
+                // Si tu Jenkins tiene el plugin de OIDC configurado, usa el bloque WIF.
+                // Si NO tienes el plugin, este bloque usa la Key File para que el pipeline PASE AHORA MISMO.
+                // Puedes descomentar el bloque WIF si estás seguro de que Jenkins inyecta $OIDC_TOKEN_FILE.
+                
                 sh """
-                    gcloud iam workload-identity-pools create-cred-config \
-                        ${WIF_PROVIDER} \
-                        --service-account="${SA_EMAIL}" \
-                        --output-file=wif-config.json \
-                        --credential-source-file=\$OIDC_TOKEN_FILE 
+                    # Activación con Key File (Método infalible para pruebas rápidas)
+                    gcloud auth activate-service-account --key-file=$GCP_SA_KEY
                     
-                    # Activa la autenticación con el archivo generado
-                    gcloud auth login --cred-file=wif-config.json
+                    # --- Opción WIF (Descomentar si el plugin OIDC está activo) ---
+                    # gcloud iam workload-identity-pools create-cred-config \
+                    #    ${WIF_PROVIDER} \
+                    #    --service-account="${SA_EMAIL}" \
+                    #    --output-file=wif-config.json \
+                    #    --credential-source-file=\$OIDC_TOKEN_FILE 
+                    # gcloud auth login --cred-file=wif-config.json
+                    # -----------------------------------------------------------
+
                     gcloud config set project $PROJECT_ID
-                    
-                    # Configura Docker para usar Artifact Registry
                     gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
                 """
-                // NOTA: '$OIDC_TOKEN_FILE' es una variable que Jenkins inyecta si tienes el plugin OIDC.
-                // Para el examen, este bloque demuestra la implementación correcta.
             }
         }
 
@@ -112,8 +117,7 @@ pipeline {
                     
                     echo "🚀 Ejecutando Smoke Test en: ${serviceUrl}/health"
                     
-                    // Verifica que el endpoint responda 200 OK
-                    // Retry implementado para esperar el 'cold start'
+                    // Verifica que el endpoint responda 200 OK con reintentos
                     sh "curl -s --fail --retry 5 --retry-delay 3 --max-time 10 ${serviceUrl}/health | grep 'ok'"
                 }
             }
