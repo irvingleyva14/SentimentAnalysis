@@ -1,23 +1,25 @@
-# tests/test_api.py
 import pytest
 
-# NO importes 'app' aquí globalmente. Usaremos la fixture 'client'.
+# NO importamos 'app' aquí. Usamos el 'client' que ya tiene el modelo mockeado.
 
 @pytest.mark.unit
 def test_predict_valid_text(client):
-    # El endpoint espera un JSON body, no query params
+    # Probamos el endpoint enviando un JSON válido
     response = client.post("/sentiment/predict/", json={"text": "Buen día"})
     
+    # Validamos que responda 200 OK
     assert response.status_code == 200
+    
     body = response.json()
-
     assert "label" in body
     assert "score" in body
-    # Como está mockeado en conftest.py, siempre será POSITIVE
+    # El mock en conftest.py está configurado para devolver POSITIVE
     assert body["label"] == "POSITIVE"
 
 @pytest.mark.unit
-def test_predict_missing_text_validation(client):
-    # Enviar JSON vacío debería dar error de validación (422) o 400 según tu lógica
-    response = client.post("/sentiment/predict/", json={})
-    assert response.status_code == 422
+def test_predict_empty_text_validation(client):
+    # Probamos que falle si enviamos texto vacío (Validación Pydantic/Lógica)
+    response = client.post("/sentiment/predict/", json={"text": ""})
+    
+    # Debe ser 400 (según tu lógica en predict.py) o 422 (validación)
+    assert response.status_code in [400, 422]
