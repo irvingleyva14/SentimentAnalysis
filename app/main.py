@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.predict import router as predict_router
@@ -8,7 +8,25 @@ from app.config import settings
 from uuid import uuid4
 import time
 
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
 logger = setup_logger(__name__)
+
+# Prometheus Metrics
+SERVICE_NAME = "sentiment-api"
+
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["service", "method", "path"]
+)
+
+REQUEST_LATENCY = Histogram(
+    "http_request_latency_seconds",
+    "Latency of HTTP requests in seconds",
+    ["service", "method", "path"]
+)
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -21,14 +39,14 @@ def create_app() -> FastAPI:
     # ----------------------------
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # En PROD: poner dominios autorizados
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     # ----------------------------
-    # Load Model once at startup
+    # Load Model once
     # ----------------------------
     logger.info("📦 Cargando modelo en startup...")
     model_loader = ModelLoader(settings.MODEL_PATH)
@@ -36,25 +54,41 @@ def create_app() -> FastAPI:
     logger.info("✔️ Modelo cargado en memoria")
 
     # ----------------------------
-    # Logging Middleware (must be BEFORE handlers and routers)
+    # Metrics Endpoint
+    # ----------------------------
+    @app.get("/metrics")
+    def metrics():
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    # ----------------------------
+    # Logging + Metrics Middleware
     # ----------------------------
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
+
         trace_id = str(uuid4())
         request.state.trace_id = trace_id
-        
+
+        method = request.method
+        path = request.url.path
+
         start_time = time.time()
         response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
-        
+        duration = time.time() - start_time
+
+        # Prometheus metrics
+        REQUEST_COUNT.labels(service=SERVICE_NAME, method=method, path=path).inc()
+        REQUEST_LATENCY.labels(service=SERVICE_NAME, method=method, path=path).observe(duration)
+
+        # JSON Logging
         logger.info(
-            f"{request.method} {request.url.path} completed",
+            f"{method} {path} completed",
             extra={
                 "trace_id": trace_id,
-                "method": request.method,
-                "path": request.url.path,
+                "method": method,
+                "path": path,
                 "status": response.status_code,
-                "latency_ms": round(process_time, 2)
+                "latency_ms": round(duration * 1000, 2)
             }
         )
 
@@ -62,15 +96,12 @@ def create_app() -> FastAPI:
         return response
 
     # ----------------------------
-    # Exception Handler (AFTER middleware)
+    # Exception Handler
     # ----------------------------
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         trace_id = getattr(request.state, "trace_id", None)
-        logger.error(
-            str(exc),
-            extra={"trace_id": trace_id}
-        )
+        logger.error(str(exc), extra={"trace_id": trace_id})
         return JSONResponse(
             status_code=500,
             content={"detail": "Error interno del servidor", "trace_id": trace_id},
@@ -89,5 +120,6 @@ def create_app() -> FastAPI:
     app.include_router(predict_router, prefix="/sentiment")
 
     return app
+
 
 app = create_app()
