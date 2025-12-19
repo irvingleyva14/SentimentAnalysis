@@ -2,7 +2,7 @@
 # STAGE 1 - BUILDER
 # Objetivo: Instalar compiladores para PyTorch/Pydantic y descargar dependencias.
 # ===========================
-FROM python:3.12-slim AS builder
+FROM python:3.15-rc-alpine3.22 AS builder
 
 # Establecer directorio de trabajo
 WORKDIR /app
@@ -28,7 +28,7 @@ COPY . /app
 # STAGE 2 - RUNNER (IMAGEN HARDENED DE PRODUCCIÓN)
 # Objetivo: Garantizar compatibilidad C/C++ y mantener la seguridad Non-root/Sin compiladores.
 # ===========================
-FROM python:3.12-slim
+FROM python:3.15-rc-alpine3.22
 
 # Establecer directorio de trabajo
 WORKDIR /app
